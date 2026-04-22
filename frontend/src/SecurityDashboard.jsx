@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './SecurityDashboard.css';
 
-const API_BASE = 'http://localhost:8086';
+// const API_BASE = 'http://localhost:8086';
+const WEB_SOCKET_BASE = 'wss://marks-pi.com/security/ws/stream'
+const API_BASE = 'https://marks-pi.com/';
 const STREAM_URL = 'http://localhost:8086/security/stream'
 
 
@@ -30,7 +32,7 @@ export default function SecurityDashboard() {
   }, [logs]);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8086/security/ws/stream');
+    const ws = new WebSocket(WEB_SOCKET_BASE);
     ws.onmessage = (e) => setFrameSrc(`data:image/jpeg;base64,${e.data}`);
     ws.onerror = () => setFeedOnline(false);
     ws.onclose = () => setFeedOnline(false);
