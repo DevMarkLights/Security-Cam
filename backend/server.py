@@ -1,12 +1,16 @@
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, Body, Form, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+import cv2
 import logging
 import requests
 from requests.auth import HTTPDigestAuth
 import time
-from camera import move_camera, track, setPreset, goToPreset, goToPostion, scan
+from camera import move_camera, track, setPreset, goToPreset, goToPostion, scan, stream
 import asyncio
+import base64
+
 
 logging.basicConfig(level=logging.ERROR)
 logging.getLogger("uvicorn.access").setLevel(logging.INFO)
@@ -17,7 +21,7 @@ validTrackingParams = ['true','false','True','False']
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["localhost:5174","marks-pi.com"],
+    allow_origins=["http://localhost:5174","https://marks-pi.com","http://localhost:3004"],
     allow_credentials=False,   # MUST be FALSE
     allow_methods=["*"],
     allow_headers=["*"],
@@ -152,6 +156,38 @@ async def toScan():
     e_time = time.time()
     request_time = e_time - s_time
     raise HTTPException(status_code=200, detail={"Scan":"Scan started","Request Time": round(request_time,ndigits=3)})  
+
+from fastapi.responses import StreamingResponse
+
+@app.websocket("/security/ws/stream")
+async def getStream(websocket: WebSocket):
+    await websocket.accept()
+    cap = stream()
+    frame_count = 0
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            frame_count += 1
+            if frame_count % 3 != 0:
+                continue
+            
+            frame = cv2.resize(frame, (854, 480))
+            
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+            frame_b64 = base64.b64encode(buffer).decode('utf-8')
+            await websocket.send_text(frame_b64)
+            await asyncio.sleep(0.05)  # ~30fps
+    except WebSocketDisconnect:
+        pass
+    finally:
+        cap.release()
+
+app.get("/security")
+app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
+
 
 if __name__ == "__main__":
     import uvicorn

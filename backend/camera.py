@@ -2,6 +2,7 @@
 import requests
 from requests.auth import HTTPDigestAuth
 import time
+import cv2
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -74,7 +75,10 @@ def goToPostion(x:int, y: int, z: int = 0, speed:int = 2):
 
 def scan():
     goToPostion(x=5, y=10)
-    # time.sleep(1)
     goToPostion(x=350,y=10)
     goToPreset()
-    
+
+def stream():
+    stream_url = f'rtsp://{USERNAME}:{PASSWORD}@192.168.2.12:554/cam/realmonitor?channel=1&subtype=0'
+    cap =  cv2.VideoCapture(stream_url)
+    return cap
