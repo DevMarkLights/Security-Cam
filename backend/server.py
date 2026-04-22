@@ -145,7 +145,6 @@ async def toScan():
        asyncio.create_task(asyncio.to_thread(scan))
     except Exception as e:
         logging.error(e)
-        print(e)
         e_time = time.time()
         request_time = e_time - s_time
         raise HTTPException(status_code=500, detail={"Error":"Could not start scan","Request Time": f'{round(request_time,ndigits=3)}s'})
