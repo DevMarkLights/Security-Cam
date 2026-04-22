@@ -1,2 +1,3 @@
 fastApi[standard]
 opencv-python-headless
+requests
