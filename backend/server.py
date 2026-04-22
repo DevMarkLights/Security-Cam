@@ -157,8 +157,6 @@ async def toScan():
     request_time = e_time - s_time
     raise HTTPException(status_code=200, detail={"Scan":"Scan started","Request Time": round(request_time,ndigits=3)})  
 
-from fastapi.responses import StreamingResponse
-
 @app.websocket("/security/ws/stream")
 async def getStream(websocket: WebSocket):
     await websocket.accept()
