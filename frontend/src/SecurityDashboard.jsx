@@ -214,8 +214,8 @@ export default function SecurityDashboard() {
           <span className="pos-value">{position.y.toFixed(1)}°</span>
           <div className="pos-divider" />
           <span className="pos-label">CAM</span>
-          <span className="pos-value">IP2M-841</span>
-          <span className="pos-mode">{tracking ? 'AUTO TRACK' : scanning ? 'SCANNING' : 'MANUAL'}</span>
+          <span className="pos-value">RL E1 Pro</span>
+          {/* <span className="pos-mode">{tracking ? 'AUTO TRACK' : scanning ? 'SCANNING' : 'MANUAL'}</span> */}
         </div>
 
         {/* Activity Log */}
