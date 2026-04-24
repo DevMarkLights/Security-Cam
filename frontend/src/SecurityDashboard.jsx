@@ -2,8 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './SecurityDashboard.css';
 
 // const API_BASE = 'http://localhost:8086';
-const WEB_SOCKET_BASE = 'wss://marks-pi.com/security/ws/stream'
 const API_BASE = 'https://marks-pi.com/';
+
+const WEB_SOCKET_BASE = 'wss://marks-pi.com/security/ws/stream'
+// const WEB_SOCKET_BASE = 'ws://localhost:8086/security/ws/stream'
+
 const STREAM_URL = 'http://localhost:8086/security/stream'
 
 
@@ -80,17 +83,34 @@ export default function SecurityDashboard() {
     }
   };
 
-  const handleScan = async () => {
+  const handleScan = async (start) => {
     if (scanning) return;
-    setScanning(true);
-    addLog('SCAN SEQUENCE INITIATED', 'info');
-    const res = await request('GET', '/security/scan');
-    if (res?.ok) {
-      addLog('SCAN RUNNING IN BACKGROUND', 'success');
-    } else {
-      addLog('SCAN FAILED TO START', 'error');
+
+    if(start){
+      setScanning(true);
+      addLog('SCAN SEQUENCE INITIATED', 'info');
+      const res = await request('GET', '/security/scan');
+
+      if (res?.ok) {
+        addLog('SCAN RUNNING IN BACKGROUND', 'success');
+      } else {
+        addLog('SCAN FAILED TO START', 'error');
+      }
+      setTimeout(() => setScanning(false), 2000);
+
+    } else{
+      setScanning(false);
+      addLog('SCAN SEQUENCE STOPPED', 'info');
+      const res = await request('GET', '/security/scanStop');
+
+      if (res?.ok) {
+        addLog('SCAN STOPPED IN BACKGROUND', 'success');
+      } else {
+        addLog('SCAN FAILED TO STOP', 'error');
+      }
+      setTimeout(() => setScanning(false), 2000);
     }
-    setTimeout(() => setScanning(false), 5000);
+    
   };
 
   const handleGoToPreset = async () => {
@@ -277,7 +297,7 @@ export default function SecurityDashboard() {
         </div>
 
         {/* Absolute Position */}
-        <div className="panel">
+        {/* <div className="panel">
           <div className="panel-header">
             <span className="panel-title">Absolute Position</span>
             <span className="panel-badge">ABS</span>
@@ -313,7 +333,7 @@ export default function SecurityDashboard() {
           <button className="action-btn" onClick={handleAbsPosition}>
             ⊕ Go to Position
           </button>
-        </div>
+        </div> */}
 
         {/* Scan */}
         <div className="panel">
@@ -323,10 +343,17 @@ export default function SecurityDashboard() {
           </div>
           <button
             className={`action-btn ${scanning ? 'active-state' : ''}`}
-            onClick={handleScan}
+            onClick={() => handleScan(true)}
             disabled={scanning}
           >
             {scanning ? '◈ Scanning...' : '◈ Start Scan Sequence'}
+          </button>
+          <button
+            className={`action-btn ${scanning ? 'active-state' : ''}`}
+            onClick={() => handleScan(false)}
+            disabled={scanning}
+          >
+            {scanning ? '◈ Scanning...' : '◈ Stop Scan Sequence'}
           </button>
         </div>
 

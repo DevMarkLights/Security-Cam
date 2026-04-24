@@ -7,7 +7,8 @@ import logging
 import requests
 from requests.auth import HTTPDigestAuth
 import time
-from camera import move_camera, track, setPreset, goToPreset, goToPostion, scan, stream
+# from amcrestCamera import move_camera, track, setPreset, goToPreset, goToPostion, scan, stream
+from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol
 import asyncio
 import base64
 
@@ -40,7 +41,10 @@ async def startTracking(request: Request):
         raise HTTPException(status_code=400, detail={"error":"track value is required", "Request Time": f'{round(request_time,ndigits=3)}s'})
     
     try:
-        track(tracking)
+        if tracking == 'true':  
+            track(True)
+        else: 
+            track(False)
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -107,46 +111,46 @@ async def toPreset():
     request_time = e_time - s_time
     raise HTTPException(status_code=200, detail={"Request Time": round(request_time,ndigits=3)})    
 
-@app.post('/security/goToPostion')
-async def toPostion(request: Request):
-    s_time = time.time()
-    body = await request.json()
-    x = 0
-    y = 0
-    if 'x' in body and 'y' in body:
-        x = body.get('x')
-        if x < 0 or x > 360:
-            e_time = time.time()
-            request_time = e_time - s_time
-            raise HTTPException(status_code=400, detail={"Error":f"x = {x} invalid 0 - 360","Request Time": f'{round(request_time,ndigits=3)}s'})
-        y = body.get('y')
-        if y < 0 or y > 90:
-            e_time = time.time()
-            request_time = e_time - s_time
-            raise HTTPException(status_code=400, detail={"Error":f"y = {y} invalid 0 - 90","Request Time": f'{round(request_time,ndigits=3)}s'})
-    else:
-        e_time = time.time()
-        request_time = e_time - s_time
-        raise HTTPException(status_code=400, detail={"Error":"x and y are required","Request Time": f'{round(request_time,ndigits=3)}s'})
+# @app.post('/security/goToPostion')
+# async def toPostion(request: Request):
+#     s_time = time.time()
+#     body = await request.json()
+#     x = 0
+#     y = 0
+#     if 'x' in body and 'y' in body:
+#         x = body.get('x')
+#         if x < 0 or x > 360:
+#             e_time = time.time()
+#             request_time = e_time - s_time
+#             raise HTTPException(status_code=400, detail={"Error":f"x = {x} invalid 0 - 360","Request Time": f'{round(request_time,ndigits=3)}s'})
+#         y = body.get('y')
+#         if y < 0 or y > 90:
+#             e_time = time.time()
+#             request_time = e_time - s_time
+#             raise HTTPException(status_code=400, detail={"Error":f"y = {y} invalid 0 - 90","Request Time": f'{round(request_time,ndigits=3)}s'})
+#     else:
+#         e_time = time.time()
+#         request_time = e_time - s_time
+#         raise HTTPException(status_code=400, detail={"Error":"x and y are required","Request Time": f'{round(request_time,ndigits=3)}s'})
     
-    try:
-        goToPostion(x=x, y=y)
-    except Exception as e:
-        logging.error(e)
-        e_time = time.time()
-        request_time = e_time - s_time
-        raise HTTPException(status_code=500, detail={"Error":f"Could not go to postion x={x} y={y} location","Request Time": f'{round(request_time,ndigits=3)}s'})
+#     try:
+#         goToPostion(x=x, y=y)
+#     except Exception as e:
+#         logging.error(e)
+#         e_time = time.time()
+#         request_time = e_time - s_time
+#         raise HTTPException(status_code=500, detail={"Error":f"Could not go to postion x={x} y={y} location","Request Time": f'{round(request_time,ndigits=3)}s'})
     
-    e_time = time.time()
-    request_time = e_time - s_time
-    raise HTTPException(status_code=200, detail={"Request Time": round(request_time,ndigits=3)})    
+#     e_time = time.time()
+#     request_time = e_time - s_time
+#     raise HTTPException(status_code=200, detail={"Request Time": round(request_time,ndigits=3)})    
 
 @app.get('/security/scan')
 async def toScan():
     s_time = time.time()
     
     try:
-       asyncio.create_task(asyncio.to_thread(scan))
+       asyncio.create_task(asyncio.to_thread(startPatrol))
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -156,6 +160,23 @@ async def toScan():
     e_time = time.time()
     request_time = e_time - s_time
     raise HTTPException(status_code=200, detail={"Scan":"Scan started","Request Time": round(request_time,ndigits=3)})  
+
+@app.get('/security/scanStop')
+async def toScan():
+    s_time = time.time()
+    
+    try:
+       stopPatrol()
+    except Exception as e:
+        logging.error(e)
+        e_time = time.time()
+        request_time = e_time - s_time
+        raise HTTPException(status_code=500, detail={"Error":"Could not start scan","Request Time": f'{round(request_time,ndigits=3)}s'})
+    
+    e_time = time.time()
+    request_time = e_time - s_time
+    raise HTTPException(status_code=200, detail={"Scan":"Scan started","Request Time": round(request_time,ndigits=3)})  
+
 
 @app.websocket("/security/ws/stream")
 async def getStream(websocket: WebSocket):
@@ -183,7 +204,6 @@ async def getStream(websocket: WebSocket):
     finally:
         cap.release()
 
-app.get("/security")
 app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
 
 

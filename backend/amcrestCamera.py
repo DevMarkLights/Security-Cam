@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 print('setting up camera config')
-CAMERA_IP = os.getenv("FRONT_DOOR_CAMERA_IP")
+CAMERA_IP = os.getenv("AMCREST_CAMERA_IP")
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("CAMERA_PASSWORD")
 
