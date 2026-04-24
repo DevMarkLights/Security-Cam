@@ -8,15 +8,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 print('setting up camera config')
-# CAMERA_IP = os.getenv("REOLINK_CAMERA_IP")
-# USERNAME = os.getenv("USERNAME")
-# PASSWORD = os.getenv("CAMERA_PASSWORD")
+CAMERA_IP = os.getenv("REOLINK_CAMERA_IP")
+USERNAME = os.getenv("USERNAME")
+PASSWORD = os.getenv("CAMERA_PASSWORD")
 
-# auth = HTTPDigestAuth(USERNAME, PASSWORD)
-
-CAMERA_IP = '192.168.1.147'
-USERNAME = 'admin'
-PASSWORD = 'Mlights82!'
 base_url = f'http://{CAMERA_IP}' 
 
 TOKEN = 'b2e0492f8482bc3'
@@ -239,14 +234,5 @@ def stopPatrol():
         raise Exception('Bad Request')
 
 if __name__ == "__main__":
-    # getToken()
-    # setPreset(preset_id=1,name='preset1',enable=1)
-    # goToPreset(id=1)
-    # move_camera("Left",5,3)
-    
-    # print(getAbility())
-    
-    # setPatrolConfig(enable=1,id=0)
-    # getPatrolConfig()
+
     print()
-    stopPatrol()
