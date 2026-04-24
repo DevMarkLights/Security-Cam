@@ -14,7 +14,7 @@ PASSWORD = os.getenv("CAMERA_PASSWORD")
 
 base_url = f'http://{CAMERA_IP}' 
 
-TOKEN = '8a3e95dd1aca88d'
+TOKEN = ''
 
 def getToken():
     global TOKEN
