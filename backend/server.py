@@ -236,7 +236,7 @@ async def deploy(request: Request):
     subprocess.Popen(["bash", f"/mnt/nvme/Security-Cam/deploy.bash"])
     return {"status": "deploying", "service": 'Security Service'}
 
-app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
+# app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
 
 
 if __name__ == "__main__":

@@ -221,7 +221,7 @@ export default function SecurityDashboard() {
         {/* Activity Log */}
         <div
           ref={logRef}
-          style={{ maxHeight: '80px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+          style={{ minHeight: '100px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
         >
           {logs.length === 0 && (
             <div className="log-entry">SYSTEM READY // AWAITING INPUT</div>
@@ -297,7 +297,7 @@ export default function SecurityDashboard() {
         </div>
 
         {/* Absolute Position */}
-        {/* <div className="panel">
+        <div className="panel" style={{pointerEvents: 'none', opacity: .5}}>
           <div className="panel-header">
             <span className="panel-title">Absolute Position</span>
             <span className="panel-badge">ABS</span>
@@ -333,7 +333,7 @@ export default function SecurityDashboard() {
           <button className="action-btn" onClick={handleAbsPosition}>
             ⊕ Go to Position
           </button>
-        </div> */}
+        </div>
 
         {/* Scan */}
         <div className="panel">

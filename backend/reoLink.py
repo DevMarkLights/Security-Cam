@@ -229,6 +229,8 @@ def stopPatrol():
         params={'cmd':'PtzCtrl', 'token':TOKEN},
         json=[{'cmd':'PtzCtrl','action':0, 'param':{'channel':0, 'op': 'StopPatrol', 'id': 0, 'speed':4}}]
     )
+    
+    goHome()
 
     if r.status_code != 200:
         raise Exception('Bad Request')
