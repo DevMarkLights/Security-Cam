@@ -11,6 +11,11 @@ import time
 from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol
 import asyncio
 import base64
+import subprocess
+import os
+from dotenv import load_dotenv
+load_dotenv()
+DEPLOY_SECRET = os.getenv("DEPLOY_SECRET")
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -203,6 +208,17 @@ async def getStream(websocket: WebSocket):
         pass
     finally:
         cap.release()
+        
+
+app.post("/security/deploy")
+async def deploy(request: Request):
+    body = await request.json()
+    if body.get("secret") != DEPLOY_SECRET:
+        raise HTTPException(status_code=401)
+    
+    
+    subprocess.Popen(["bash", f"/mnt/nvme/Security-Cam/deploy.bash"])
+    return {"status": "deploying", "service": 'Security Service'}
 
 app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
 
