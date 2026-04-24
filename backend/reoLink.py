@@ -14,7 +14,7 @@ PASSWORD = os.getenv("CAMERA_PASSWORD")
 
 base_url = f'http://{CAMERA_IP}' 
 
-TOKEN = 'b2e0492f8482bc3'
+TOKEN = '8a3e95dd1aca88d'
 
 def getToken():
     global TOKEN
@@ -233,6 +233,44 @@ def stopPatrol():
     if r.status_code != 200:
         raise Exception('Bad Request')
 
-if __name__ == "__main__":
+def getPresets():
+    if TOKEN == '':
+        getToken()
+        
+    r = requests.post(
+        url=f'{base_url}/api.cgi',
+        params={'cmd': 'GetPtzPreset', 'token': TOKEN},
+        json=[{'cmd': 'GetPtzPreset', 'action': 1, 'param': {'channel': 0}}]
+    )
+    print(r.json())
+    if r.status_code != 200:
+        raise Exception('Bad Request')
 
+def goHome():
+    if TOKEN == '':
+        getToken()
+        
+    r = requests.post(
+        url=f'{base_url}/api.cgi',
+        params={'cmd': 'PtzCtrl', 'token': TOKEN},
+        json=[{
+            'cmd': 'PtzCtrl',
+            'action': 0,
+            'param':{
+                "channel":0,
+                "op":"ToPos",
+                "id": 2,
+                "speed":32
+            }
+        }]
+    )
+    
+    if r.status_code != 200:
+        raise Exception('Bad Request')
+
+
+if __name__ == "__main__":
+    # getToken()
+    # move_camera(direction='Up')
+    goHome()
     print()

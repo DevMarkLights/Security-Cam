@@ -8,7 +8,7 @@ import requests
 from requests.auth import HTTPDigestAuth
 import time
 # from amcrestCamera import move_camera, track, setPreset, goToPreset, goToPostion, scan, stream
-from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol
+from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol, goHome
 import asyncio
 import base64
 import subprocess
@@ -208,9 +208,25 @@ async def getStream(websocket: WebSocket):
         pass
     finally:
         cap.release()
+
+@app.post("/goHome")
+async def home():
+    s_time = time.time()
+    
+    try:
+       goHome()
+    except Exception as e:
+        logging.error(e)
+        e_time = time.time()
+        request_time = e_time - s_time
+        raise HTTPException(status_code=500, detail={"Error":"Could not go home","Request Time": f'{round(request_time,ndigits=3)}s'})
+    
+    e_time = time.time()
+    request_time = e_time - s_time
+    raise HTTPException(status_code=200, detail={"Success":"Going Home","Request Time": round(request_time,ndigits=3)})  
         
 
-app.post("/security/deploy")
+@app.post("/security/deploy")
 async def deploy(request: Request):
     body = await request.json()
     if body.get("secret") != DEPLOY_SECRET:
