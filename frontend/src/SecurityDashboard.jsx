@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './SecurityDashboard.css';
 
 // const API_BASE = 'http://localhost:8086';
-const API_BASE = 'https://marks-pi.com/';
+const API_BASE = 'https://marks-pi.com';
 
 const WEB_SOCKET_BASE = 'wss://marks-pi.com/security/ws/stream'
 // const WEB_SOCKET_BASE = 'ws://localhost:8086/security/ws/stream'
