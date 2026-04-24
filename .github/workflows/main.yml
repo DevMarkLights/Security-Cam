@@ -1,0 +1,15 @@
+name: Deploy to Pi
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy
+        run: |
+          curl -X POST https://marks-pi.com/security/deploy \
+            -H "Content-Type: application/json" \
+            -d '{"secret": "${{ secrets.DEPLOY_SECRET }}"}'
