@@ -22,9 +22,26 @@ export default function SecurityDashboard() {
   const logRef = useRef(null);
   const wsRef = useRef(null);
   const [frameSrc, setFrameSrc] = useState('');
+  const [mobile, setMobile] = useState(false)
 
-  // Clock
+
   useEffect(() => {
+    // mobile device
+      window.addEventListener('resize', ()=>{
+      if(window.outerWidth < 600){
+        setMobile(true)
+      }else{
+        setMobile(false)
+      }
+    })
+
+    if(window.outerWidth < 600){
+      setMobile(true)
+    }else{
+      setMobile(false)
+    }
+
+    // Clock
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -219,19 +236,35 @@ export default function SecurityDashboard() {
         </div>
 
         {/* Activity Log */}
-        <div
-          ref={logRef}
-          style={{ minHeight: '100px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
-        >
-          {logs.length === 0 && (
-            <div className="log-entry">SYSTEM READY // AWAITING INPUT</div>
-          )}
-          {logs.map((l, i) => (
-            <div key={i} className={`log-entry ${l.type}`}>
-              [{l.ts}] {l.msg}
-            </div>
-          ))}
-        </div>
+        {mobile ?
+          <div
+            ref={logRef}
+            style={{ minHeight: '50px', maxHeight: '50px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+          >
+            {logs.length === 0 && (
+              <div className="log-entry">SYSTEM READY // AWAITING INPUT</div>
+            )}
+            {logs.map((l, i) => (
+              <div key={i} className={`log-entry ${l.type}`}>
+                [{l.ts}] {l.msg}
+              </div>
+            ))}
+          </div>
+        :
+          <div
+            ref={logRef}
+            style={{ minHeight: '100px', maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+          >
+            {logs.length === 0 && (
+              <div className="log-entry">SYSTEM READY // AWAITING INPUT</div>
+            )}
+            {logs.map((l, i) => (
+              <div key={i} className={`log-entry ${l.type}`}>
+                [{l.ts}] {l.msg}
+              </div>
+            ))}
+          </div>
+        }
       </main>
 
       {/* ─── SIDEBAR ─── */}

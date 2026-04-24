@@ -89,7 +89,7 @@ async def preset():
     s_time = time.time()
 
     try:
-        setPreset( id = 2, name="Home", enable=1)
+        setPreset( preset_id=2, name="Home", enable=1)
     except Exception as e:
         logging.error(e)
         e_time = time.time()
