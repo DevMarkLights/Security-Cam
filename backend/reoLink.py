@@ -474,3 +474,4 @@ if __name__ == "__main__":
     # setPreset(preset_id=1,name="preset1",enable=1)
     # setPatrolConfig()
     print()
+
