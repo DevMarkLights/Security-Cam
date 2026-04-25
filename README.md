@@ -1,21 +1,22 @@
 # Security Camera API
 
-A self-hosted FastAPI backend for controlling an Amcrest IP2M-841 PTZ WiFi camera over a local network. Built on a Raspberry Pi 5 and exposed via Cloudflare Tunnel.
+A self-hosted FastAPI backend for controlling a Reolink E1 Pro PTZ WiFi camera over a local network. Built on a Raspberry Pi 5 and exposed via Cloudflare Tunnel.
 
 ## Tech Stack
 
 - **Backend:** FastAPI (Python)
-- **Camera:** Amcrest IP2M-841 1080p WiFi PTZ Camera
-- **Protocol:** Amcrest HTTP CGI API via `requests` with HTTP Digest Auth
+- **Camera:** Reolink E1 Pro 1080p WiFi PTZ Camera
+- **Protocol:** Reolink HTTP CGI API via `requests`
 - **Infrastructure:** Raspberry Pi 5, Cloudflare Tunnel, Nginx
 
 ## Features
 
-- Toggle AI-powered auto tracking on/off (`LeSmartTrack`)
-- Manual PTZ directional movement
-- Absolute position control (pan/tilt coordinates)
+- Toggle AI-powered auto tracking on/off (`bSmartTrack`)
+- Manual PTZ directional movement with stop command
 - Set and return to preset positions
-- Auto scan mode (sweeps between two positions and returns to home)
+- Patrol mode (sweeps between saved presets)
+- Image flip/mirror correction for upside-down mounting
+- Token-based authentication with auto re-authentication
 - Health check endpoint
 - Request timing on all responses
 - Input validation with descriptive error messages
@@ -65,17 +66,14 @@ Move the camera in a specified direction.
 
 ---
 
-### `POST /security/goToPostion`
-Move the camera to an absolute pan/tilt position.
+### `GET /security/setPreset?id=1&name=preset1`
+Save the camera's current position as a named preset.
 
-**Request Body:**
-```json
-{ "x": 180, "y": 45 }
-```
-
-**Validation:**
-- `x` — horizontal pan angle, range `0–360`
-- `y` — vertical tilt angle, range `0–90`
+**Query Params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `id` | int | Preset ID (0–63) |
+| `name` | string | Preset name |
 
 **Response:**
 ```json
@@ -84,18 +82,13 @@ Move the camera to an absolute pan/tilt position.
 
 ---
 
-### `GET /security/setPreset`
-Save the camera's current position as preset 1.
+### `GET /security/goToPreset?id=1`
+Move the camera to a saved preset position.
 
-**Response:**
-```json
-{ "Request Time": 0.123 }
-```
-
----
-
-### `GET /security/goToPreset`
-Return the camera to the saved preset 1 position.
+**Query Params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `id` | int | Preset ID to move to |
 
 **Response:**
 ```json
@@ -105,7 +98,7 @@ Return the camera to the saved preset 1 position.
 ---
 
 ### `GET /security/scan`
-Start an auto scan — moves the camera through two positions and returns to the preset home. Runs asynchronously in the background so the response is immediate.
+Start patrol mode — camera sweeps between saved presets automatically.
 
 **Response:**
 ```json
@@ -114,18 +107,32 @@ Start an auto scan — moves the camera through two positions and returns to the
 
 ---
 
+### `GET /security/stopScan`
+Stop patrol mode.
+
+**Response:**
+```json
+{ "Request Time": 0.123 }
+```
+
+---
+
 ## Camera Module (`camera.py`)
 
-All camera communication is handled through the Amcrest HTTP CGI API using HTTP Digest Auth.
+All camera communication is handled through the Reolink HTTP CGI API using token-based authentication.
 
 | Function | Description |
 |----------|-------------|
-| `move_camera(direction, speed, duration)` | Sends start/stop PTZ directional commands |
-| `track(tracking)` | Toggles `LeSmartTrack[0].Enable` via configManager |
-| `setPreset()` | Saves current position as preset 1 |
-| `goToPreset()` | Moves camera to preset 1 |
-| `goToPostion(x, y)` | Moves camera to absolute coordinates via `PositionABS` |
-| `scan()` | Sweeps through two positions then returns home |
+| `get_token()` | Authenticates and stores session token (expires after 1 hour) |
+| `move_camera(direction, speed, duration)` | Sends PTZ directional command then stops after duration |
+| `set_tracking(enabled)` | Toggles `bSmartTrack` and `aiTrack` for AI auto tracking |
+| `set_preset(id, name)` | Saves current position as a named preset |
+| `go_to_preset(id)` | Moves camera to saved preset position |
+| `set_patrol_config(id, enable)` | Configures patrol route between presets |
+| `start_patrol()` | Starts automated patrol between presets |
+| `stop_patrol()` | Stops patrol mode |
+| `flip_image()` | Enables mirroring and rotation for upside-down mounting |
+| `get_ability()` | Returns full camera capability map |
 
 ## Running the Server
 
@@ -138,8 +145,12 @@ Server runs on port `8086` by default.
 
 ## Notes
 
-- Auto tracking uses the camera's built-in AI (`LeSmartTrack`) — no OpenCV required
-- All PTZ commands use the Amcrest CGI API (`/cgi-bin/ptz.cgi`)
-- Config commands use `/cgi-bin/configManager.cgi`
-- The camera must be on the same local network as the Pi
-- Preset position must be set once via `/security/setPreset` before `/security/goToPreset` can be used
+- Mounted upside down — `mirroring` and `rotation` are enabled via `SetIsp`
+- Auto tracking uses the camera's built-in AI (`bSmartTrack`) — no OpenCV required
+- Token expires after 3600 seconds (1 hour) — re-authentication is handled automatically
+- Preset must be saved via `/security/setPreset` before `/security/goToPreset` can be used
+- Disable auto tracking before calling `goToPreset` — active tracking overrides PTZ commands
+- Do not physically move the camera by hand after saving presets — this breaks positional reference
+- ONVIF enabled for future absolute positioning support
+- Camera is on 5GHz WiFi for stable high-bandwidth streaming
+- RTSP stream: `rtsp://admin:password@<ip>:554/Preview_01_main`
