@@ -52,13 +52,30 @@ export default function SecurityDashboard() {
   }, [logs]);
 
   useEffect(() => {
-    const ws = new WebSocket(WEB_SOCKET_BASE);
-    ws.onmessage = (e) => setFrameSrc(`data:image/jpeg;base64,${e.data}`);
-    ws.onerror = () => setFeedOnline(false);
-    ws.onclose = () => setFeedOnline(false);
-    ws.onopen = () => setFeedOnline(true);
-    wsRef.current = ws;
-    return () => ws.close();
+    function connect(){
+      const ws = new WebSocket(WEB_SOCKET_BASE);
+      ws.onmessage = (e) => setFrameSrc(`data:image/jpeg;base64,${e.data}`);
+      ws.onerror = () => setFeedOnline(false);
+      ws.onclose = () => {
+        setFeedOnline(false);
+        reconnectTimeout.current = setTimeout(connect, 5000);
+      };
+      ws.onopen = () => setFeedOnline(true);
+      wsRef.current = ws;
+    }
+    connect();
+    // const ws = new WebSocket(WEB_SOCKET_BASE);
+    // ws.onmessage = (e) => setFrameSrc(`data:image/jpeg;base64,${e.data}`);
+    // ws.onerror = () => setFeedOnline(false);
+    // ws.onclose = () => setFeedOnline(false);
+    // ws.onopen = () => setFeedOnline(true);
+    // wsRef.current = ws;
+    // return () => ws.close();
+
+    return () => {
+      clearTimeout(reconnectTimeout.current);
+      wsRef.current?.close();
+    };
   }, []);
 
   const addLog = useCallback((msg, type = 'info') => {
