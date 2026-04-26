@@ -1,4 +1,10 @@
 
+from collections import deque
+from queue import Queue
+import sys
+import threading
+import logging
+from fastapi import WebSocket
 import requests
 from requests.auth import HTTPDigestAuth
 import time
@@ -15,6 +21,9 @@ PASSWORD = os.getenv("CAMERA_PASSWORD")
 base_url = f'http://{CAMERA_IP}' 
 
 TOKEN = ''
+record_buffer = deque(maxlen=600) # minute of frames
+frame_queue = deque(maxlen=30) # queue for frames
+stop_event = threading.Event()
 
 def getToken():
     global TOKEN
@@ -117,7 +126,6 @@ def track(tracking:bool):
     if r.status_code != 200:
         raise Exception('Bad Request')
 
-
 def setPreset(preset_id: int, name: str, enable: int = 1):
     if TOKEN == '':
         getToken()
@@ -199,10 +207,38 @@ def goToPreset(id: int = 1):
     if r.status_code != 200:
         raise Exception('Bad Request')
     
-def stream():
+def stream(logging, frame_lock):
     stream_url = f'rtsp://{USERNAME}:{PASSWORD}@{CAMERA_IP}:554/Preview_01_main'
     cap =  cv2.VideoCapture(stream_url)
-    return cap
+    frame_count = 0
+    try:
+        while not stop_event.is_set():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            frame_count += 1
+            if frame_count % 3 != 0:
+                continue
+            else:
+                frame_count = 0
+            
+            frame = cv2.resize(frame, (854, 480))
+            
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            compressed = buffer.tobytes()
+            record_buffer.append(compressed)
+            with frame_lock: # lock queue from being accessed while inserting
+                frame_queue.append(compressed)
+    except Exception as e:
+        logging.error(e)
+        raise Exception('Could not start stream')
+    finally:
+        cap.release()
+
+def buffer_size():
+    total = sum(sys.getsizeof(frame) for frame in record_buffer)
+    return f"Buffer size: {total / (1024 * 1024):.2f} MB"
 
 def getAbility():
     if TOKEN == '':

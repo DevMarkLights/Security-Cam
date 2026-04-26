@@ -1,3 +1,6 @@
+from contextlib import asynccontextmanager
+import threading
+
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, Body, Form, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from typing import List
@@ -8,7 +11,7 @@ import requests
 from requests.auth import HTTPDigestAuth
 import time
 # from amcrestCamera import move_camera, track, setPreset, goToPreset, goToPostion, scan, stream
-from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol, goHome
+from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol, goHome, buffer_size, stop_event, stream, frame_queue
 import asyncio
 import base64
 import subprocess
@@ -24,7 +27,16 @@ logging.getLogger("uvicorn.error").setLevel(logging.INFO)
 
 validTrackingParams = ['true','false','True','False']
 
-app = FastAPI()
+frame_lock = threading.Lock()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    thread = threading.Thread(target=stream, args=(logging,frame_lock), daemon=True)
+    thread.start()
+    yield
+    stop_event.set()
+
+app = FastAPI(lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5174","https://marks-pi.com","http://localhost:3004"],
@@ -32,7 +44,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
- 
 
 @app.get("/security/track")
 async def startTracking(request: Request):
@@ -182,32 +193,23 @@ async def toScan():
     request_time = e_time - s_time
     raise HTTPException(status_code=200, detail={"Scan":"Scan started","Request Time": round(request_time,ndigits=3)})  
 
+@app.get("/security/buffer-size")
+def get_buffer_size():
+    return {'buffer-size':buffer_size()}
 
 @app.websocket("/security/ws/stream")
 async def getStream(websocket: WebSocket):
     await websocket.accept()
-    cap = stream()
-    frame_count = 0
     try:
         while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            frame_count += 1
-            if frame_count % 3 != 0:
-                continue
-            
-            frame = cv2.resize(frame, (854, 480))
-            
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
-            frame_b64 = base64.b64encode(buffer).decode('utf-8')
-            await websocket.send_text(frame_b64)
-            await asyncio.sleep(0.05)  # ~30fps
+            if frame_queue:
+                with frame_lock:
+                    frame = frame_queue.popleft()
+                if frame:
+                    await websocket.send_bytes(frame)
+                    await asyncio.sleep(0.033)
     except WebSocketDisconnect:
         pass
-    finally:
-        cap.release()
 
 @app.post("/goHome")
 async def home():

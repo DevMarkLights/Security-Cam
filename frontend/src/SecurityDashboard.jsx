@@ -23,7 +23,8 @@ export default function SecurityDashboard() {
   const wsRef = useRef(null);
   const [frameSrc, setFrameSrc] = useState('');
   const [mobile, setMobile] = useState(false)
-
+  const prevUrlRef = useRef(null);
+  const reconnectTimeout = useRef(null);
 
   useEffect(() => {
     // mobile device
@@ -54,7 +55,17 @@ export default function SecurityDashboard() {
   useEffect(() => {
     function connect(){
       const ws = new WebSocket(WEB_SOCKET_BASE);
-      ws.onmessage = (e) => setFrameSrc(`data:image/jpeg;base64,${e.data}`);
+      ws.binaryType='arraybuffer'
+      ws.onmessage = (e) => {
+        const blob = new Blob([e.data], {type: 'image/jpeg'})
+        const url = URL.createObjectURL(blob)
+
+        if (prevUrlRef.current) {
+          URL.revokeObjectURL(prevUrlRef.current);
+        }
+        prevUrlRef.current=url
+        setFrameSrc(url)
+      };
       ws.onerror = () => setFeedOnline(false);
       ws.onclose = () => {
         setFeedOnline(false);
@@ -64,13 +75,6 @@ export default function SecurityDashboard() {
       wsRef.current = ws;
     }
     connect();
-    // const ws = new WebSocket(WEB_SOCKET_BASE);
-    // ws.onmessage = (e) => setFrameSrc(`data:image/jpeg;base64,${e.data}`);
-    // ws.onerror = () => setFeedOnline(false);
-    // ws.onclose = () => setFeedOnline(false);
-    // ws.onopen = () => setFeedOnline(true);
-    // wsRef.current = ws;
-    // return () => ws.close();
 
     return () => {
       clearTimeout(reconnectTimeout.current);
