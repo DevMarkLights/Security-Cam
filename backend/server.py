@@ -202,13 +202,20 @@ async def getStream(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
+            try:
+                await asyncio.wait_for(websocket.receive(), timeout=0.01)
+            except asyncio.TimeoutError:
+                pass
+            except (WebSocketDisconnect , RuntimeError):
+                break
+            
             if frame_queue:
                 with frame_lock:
                     frame = frame_queue.popleft()
                 if frame:
                     await websocket.send_bytes(frame)
                     await asyncio.sleep(0.033)
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
 
 @app.post("/goHome")
