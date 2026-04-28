@@ -209,11 +209,10 @@ def goToPreset(id: int = 1):
     
 def stream(logging, frame_lock):
     stream_url = f'rtsp://{USERNAME}:{PASSWORD}@{CAMERA_IP}:554/Preview_01_main'
-    cap =  cv2.VideoCapture(stream_url)
     try:
         logging.info("Camera thread started")
         while not stop_event.is_set():
-            
+            cap =  cv2.VideoCapture(stream_url)
             if not cap.isOpened():
                 logging.error("Failed to open RTSP stream, retrying in 5s")
                 time.sleep(5)
