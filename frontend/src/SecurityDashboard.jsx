@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './SecurityDashboard.css';
 
-// const API_BASE = 'http://localhost:8086';
-const API_BASE = 'https://marks-pi.com';
-
-const WEB_SOCKET_BASE = 'wss://marks-pi.com/security/ws/stream'
-// const WEB_SOCKET_BASE = 'ws://localhost:8086/security/ws/stream'
-
+let API_BASE = '';
+let WEB_SOCKET_BASE = ''
 const STREAM_URL = 'http://localhost:8086/security/stream'
-
+const local = false
 
 export default function SecurityDashboard() {
   const [tracking, setTracking] = useState(false);
@@ -26,6 +22,13 @@ export default function SecurityDashboard() {
   const prevUrlRef = useRef(null);
   const reconnectTimeout = useRef(null);
 
+  if (local == true){
+    API_BASE = 'http://localhost:8086';
+    WEB_SOCKET_BASE = 'ws://localhost:8086/security/ws/stream'
+  }else{
+    API_BASE = 'https://marks-pi.com';
+    WEB_SOCKET_BASE = 'wss://marks-pi.com/security/ws/stream'
+  }
   useEffect(() => {
     // mobile device
       window.addEventListener('resize', ()=>{
