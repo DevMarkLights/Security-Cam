@@ -11,7 +11,7 @@ import requests
 from requests.auth import HTTPDigestAuth
 import time
 # from amcrestCamera import move_camera, track, setPreset, goToPreset, goToPostion, scan, stream
-from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol, goHome, buffer_size, stop_event, stream, frame_queue
+from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol, goHome, buffer_size, stop_event, frame_queue
 import asyncio
 import base64
 import subprocess
@@ -21,7 +21,7 @@ load_dotenv()
 DEPLOY_SECRET = os.getenv("DEPLOY_SECRET")
 
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.INFO)
 logging.getLogger("uvicorn.access").setLevel(logging.INFO)
 logging.getLogger("uvicorn.error").setLevel(logging.INFO)
 
@@ -216,7 +216,7 @@ async def getStream(websocket: WebSocket):
                     
             if frame:
                 await websocket.send_bytes(frame)
-
+            
             await asyncio.sleep(0.033)
     except (WebSocketDisconnect, RuntimeError):
         pass

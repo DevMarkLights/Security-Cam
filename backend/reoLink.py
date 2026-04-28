@@ -210,26 +210,38 @@ def goToPreset(id: int = 1):
 def stream(logging, frame_lock):
     stream_url = f'rtsp://{USERNAME}:{PASSWORD}@{CAMERA_IP}:554/Preview_01_main'
     cap =  cv2.VideoCapture(stream_url)
-    frame_count = 0
     try:
+        logging.info("Camera thread started")
         while not stop_event.is_set():
-            ret, frame = cap.read()
-            if not ret:
-                break
             
-            frame_count += 1
-            if frame_count % 3 != 0:
+            if not cap.isOpened():
+                logging.error("Failed to open RTSP stream, retrying in 5s")
+                time.sleep(5)
                 continue
-            else:
-                frame_count = 0
             
-            frame = cv2.resize(frame, (854, 480))
+            logging.info("RTSP stream opened successfully")
+            frame_count = 0
+        
+            while not stop_event.is_set():
             
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
-            compressed = buffer.tobytes()
-            record_buffer.append(compressed)
-            with frame_lock: # lock queue from being accessed while inserting
-                frame_queue.append(compressed)
+                ret, frame = cap.read()
+                if not ret:
+                    logging.warning("Lost RTSP stream, reconnecting...")
+                    break
+                
+                frame_count += 1
+                if frame_count % 3 != 0:
+                    continue
+                else:
+                    frame_count = 0
+                
+                frame = cv2.resize(frame, (854, 480))
+                
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                compressed = buffer.tobytes()
+                record_buffer.append(compressed)
+                with frame_lock: # lock queue from being accessed while inserting
+                    frame_queue.append(compressed)
     except Exception as e:
         logging.error(e)
         raise Exception('Could not start stream')

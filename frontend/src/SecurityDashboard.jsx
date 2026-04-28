@@ -55,28 +55,29 @@ export default function SecurityDashboard() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
 
-  useEffect(() => {
-    function connect(){
-      const ws = new WebSocket(WEB_SOCKET_BASE);
-      ws.binaryType='arraybuffer'
-      ws.onmessage = (e) => {
-        const blob = new Blob([e.data], {type: 'image/jpeg'})
-        const url = URL.createObjectURL(blob)
+  function connect(){
+    const ws = new WebSocket(WEB_SOCKET_BASE);
+    ws.binaryType='arraybuffer'
+    ws.onmessage = (e) => {
+      const blob = new Blob([e.data], {type: 'image/jpeg'})
+      const url = URL.createObjectURL(blob)
 
-        if (prevUrlRef.current) {
-          URL.revokeObjectURL(prevUrlRef.current);
-        }
-        prevUrlRef.current=url
-        setFrameSrc(url)
-      };
-      ws.onerror = () => setFeedOnline(false);
-      ws.onclose = () => {
-        setFeedOnline(false);
-        reconnectTimeout.current = setTimeout(connect, 5000);
-      };
-      ws.onopen = () => setFeedOnline(true);
-      wsRef.current = ws;
-    }
+      if (prevUrlRef.current) {
+        URL.revokeObjectURL(prevUrlRef.current);
+      }
+      prevUrlRef.current=url
+      setFrameSrc(url)
+    };
+    ws.onerror = () => setFeedOnline(false);
+    ws.onclose = () => {
+      setFeedOnline(false);
+      reconnectTimeout.current = setTimeout(connect, 5000);
+    };
+    ws.onopen = () => setFeedOnline(true);
+    wsRef.current = ws;
+  }
+  
+  useEffect(() => {
     connect();
 
     return () => {
@@ -294,6 +295,10 @@ export default function SecurityDashboard() {
       {/* ─── SIDEBAR ─── */}
       <aside className="sidebar">
 
+        {/* Reconnect*/}
+        <div className='panel'>
+          <button className='ptz-btn' disabled={feedOnline} style={{padding: '0 20px', color: !feedOnline ? 'white' : '#5a7a94', height: '50px' }} onClick={() => connect()}>Reconnect</button>
+        </div>
         {/* Auto Track */}
         <div className="panel">
           <div className="panel-header">
