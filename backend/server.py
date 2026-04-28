@@ -208,13 +208,15 @@ async def getStream(websocket: WebSocket):
                 pass
             except (WebSocketDisconnect , RuntimeError):
                 break
-            
+            frame = None
             if frame_queue:
                 with frame_lock:
                     frame = frame_queue.popleft()
-                if frame:
-                    await websocket.send_bytes(frame)
-                    await asyncio.sleep(0.033)
+                    
+            if frame:
+                await websocket.send_bytes(frame)
+                
+            await asyncio.sleep(0.033)
     except (WebSocketDisconnect, RuntimeError):
         pass
 
