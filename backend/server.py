@@ -2,16 +2,18 @@ from contextlib import asynccontextmanager
 import threading
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, Body, Form, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.background import BackgroundTask
 import cv2
 import logging
 import requests
 from requests.auth import HTTPDigestAuth
 import time
 # from amcrestCamera import move_camera, track, setPreset, goToPreset, goToPostion, scan, stream
-from reoLink import move_camera, track, setPreset, goToPreset, stream, startPatrol, stopPatrol, goHome, buffer_size, stop_event, frame_queue
+import reoLink
 import asyncio
 import base64
 import subprocess
@@ -30,10 +32,10 @@ validTrackingParams = ['true','false','True','False']
 frame_lock = threading.Lock()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    thread = threading.Thread(target=stream, args=(logging,frame_lock), daemon=True)
+    thread = threading.Thread(target=reoLink.stream, args=(logging,frame_lock), daemon=True)
     thread.start()
     yield
-    stop_event.set()
+    reoLink.stop_event.set()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -43,6 +45,7 @@ app.add_middleware(
     allow_credentials=False,   # MUST be FALSE
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"]
 )
 
 @app.get("/security/track")
@@ -58,9 +61,9 @@ async def startTracking(request: Request):
     
     try:
         if tracking == 'true':  
-            track(True)
+            reoLink.track(True)
         else: 
-            track(False)
+            reoLink.track(False)
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -80,7 +83,7 @@ async def move(request: Request):
     if "direction" in body:
         direction = body.get("direction")
         try:
-            move_camera(direction=direction)
+            reoLink.move_camera(direction=direction)
         except Exception as e:
             logging.error(e)
             e_time = time.time()
@@ -100,7 +103,7 @@ async def preset():
     s_time = time.time()
 
     try:
-        setPreset( preset_id=2, name="Home", enable=1)
+        reoLink.setPreset( preset_id=2, name="Home", enable=1)
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -116,7 +119,7 @@ async def toPreset():
     s_time = time.time()
     
     try:
-        goToPreset(id = 2)
+        reoLink.goToPreset(id = 2)
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -166,7 +169,7 @@ async def toScan():
     s_time = time.time()
     
     try:
-       asyncio.create_task(asyncio.to_thread(startPatrol))
+       asyncio.create_task(asyncio.to_thread(reoLink.startPatrol))
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -182,7 +185,7 @@ async def toScan():
     s_time = time.time()
     
     try:
-       stopPatrol()
+       reoLink.stopPatrol()
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -195,8 +198,33 @@ async def toScan():
 
 @app.get("/security/buffer-size")
 def get_buffer_size():
-    return {'buffer-size':buffer_size()}
+    return {'buffer-size':reoLink.buffer_size()}
 
+@app.get("/security/record")
+async def recordVideo(request: Request):
+    # global RECORDING, VIDEO, VideoFileName
+    r: str = request.query_params.get("record")
+    r = r.lower()
+    try:
+        if r == 'true':
+            reoLink.RECORDING = True
+            return HTTPException(status_code=200, detail={"Recording": f'Recoring Started'})  
+        else:
+            reoLink.RECORDING = False
+            await asyncio.sleep(3)
+            if reoLink.VideoFileName and os.path.exists(f'{reoLink.VideoFileName}.mp4'):
+                return FileResponse(
+                    path=f'{reoLink.VideoFileName}.mp4',
+                    media_type='video/x-msvideo',
+                    filename=f'{reoLink.VideoFileName}.mp4',
+                    background=BackgroundTask(delete_file, f'{reoLink.VideoFileName}.mp4')
+                )
+            logging.error(f"No video found for {reoLink.VideoFileName}")
+            raise HTTPException(status_code=404, detail="No recording found") 
+    except Exception as e:
+        logging.error(e)
+        raise HTTPException(status_code=500, detail={"Error":"Could not start/stop recording video"})
+    
 @app.websocket("/security/ws/stream")
 async def getStream(websocket: WebSocket):
     await websocket.accept()
@@ -210,9 +238,9 @@ async def getStream(websocket: WebSocket):
                 break
             
             frame = None
-            if frame_queue:
+            if reoLink.frame_queue:
                 with frame_lock:
-                    frame = frame_queue.popleft()
+                    frame = reoLink.frame_queue.popleft()
                     
             if frame:
                 await websocket.send_bytes(frame)
@@ -226,7 +254,7 @@ async def home():
     s_time = time.time()
     
     try:
-       goHome()
+       reoLink.goHome()
     except Exception as e:
         logging.error(e)
         e_time = time.time()
@@ -250,6 +278,15 @@ async def deploy(request: Request):
 
 app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
 
+def delete_file(path: str):
+    max_retries = 5
+    for _ in range(max_retries):
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+            return
+        except Exception:
+            time.sleep(0.5)
 
 if __name__ == "__main__":
     import uvicorn

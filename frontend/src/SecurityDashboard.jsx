@@ -15,10 +15,11 @@ export default function SecurityDashboard() {
   const [absY, setAbsY] = useState('');
   const [logs, setLogs] = useState([]);
   const [time, setTime] = useState(new Date());
-  const logRef = useRef(null);
-  const wsRef = useRef(null);
   const [frameSrc, setFrameSrc] = useState('');
   const [mobile, setMobile] = useState(false)
+  const [recording,setRecording] = useState(false)
+  const logRef = useRef(null);
+  const wsRef = useRef(null);
   const prevUrlRef = useRef(null);
   const reconnectTimeout = useRef(null);
 
@@ -204,6 +205,24 @@ export default function SecurityDashboard() {
     { label: '↘', dir: 'RightDown',pos: [2,2] },
   ];
 
+  const record = async () => {
+    setRecording(!recording)
+    const res = await request('GET', `/security/record?record=${!recording}`);
+
+    if (recording){
+      const disposition = res.headers.get('Content-Disposition');
+      const filename = disposition.split('filename=')[1].replace(/"/g, '');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
   return (
     <div className="dashboard">
 
@@ -229,14 +248,17 @@ export default function SecurityDashboard() {
       {/* ─── FEED AREA ─── */}
       <main className="feed-area">
         <div className="feed-container">
-          <div className="feed-corner tl" />
+          {/* <div className="feed-corner tl" />
           <div className="feed-corner tr" />
           <div className="feed-corner bl" />
-          <div className="feed-corner br" />
-          <div className="feed-rec">
-            <span className="rec-dot" />
-            REC
-          </div>
+          <div className="feed-corner br" /> */}
+          {recording &&
+            <div className="feed-rec">
+              <span className="rec-dot" />
+              REC
+            </div>
+          }
+          
           {feedOnline ? (
             <img className="feed-img" src={frameSrc} alt="Camera Feed" />
           ) : (
@@ -296,9 +318,20 @@ export default function SecurityDashboard() {
       <aside className="sidebar">
 
         {/* Reconnect*/}
-        <div className='panel'>
-          <button className='ptz-btn' disabled={feedOnline} style={{padding: '0 20px', color: !feedOnline ? 'white' : '#5a7a94', height: '50px' }} onClick={() => connect()}>Reconnect</button>
-        </div>
+        {mobile ?
+          <div className='panel' style={{display:'flex', flexDirection:'row', flexWrap:'wrap', gap:'4px'}}>
+            <button className='ptz-btn' disabled={!feedOnline} style={{padding: '0 5px', color: !feedOnline ? 'white' : '#5a7a94', height: '40px', width:'75px', fontSize:'12px', pointerEvents: !feedOnline ? 'visible' : 'none'  }} onClick={() => connect()}>Reconnect</button>
+            <button className='ptz-btn' disabled={true} style={{padding: '0 5px', color: !feedOnline ? 'white' : '#5a7a94', height: '40px', width:'75px', fontSize:'12px', opacity: '.5', pointerEvents: feedOnline ? 'visible' : 'none'  }}>Snapshot</button>
+            <button className='ptz-btn' disabled={!feedOnline} style={{padding: '0 5px', color: !feedOnline ? 'white' : '#5a7a94', height: '40px', width:'75px', fontSize:'12px', color: recording ? 'red':'#5a7a94', opacity: feedOnline ? '1.0' : '.5', pointerEvents: feedOnline ? 'visible' : 'none' }} onClick={() => record() }>{recording ? 'Recording':'Record'}</button>
+          </div>
+        :
+          <div className='panel' style={{display:'flex', flexDirection:'row', flexWrap:'wrap', gap:'6px'}}>
+            <button className='ptz-btn' disabled={!feedOnline} style={{padding: '0 5px', color: !feedOnline ? 'white' : '#5a7a94', height: '50px', width:'100px', pointerEvents: !feedOnline ? 'visible' : 'none'  }} onClick={() => connect()}>Reconnect</button>
+            <button className='ptz-btn' disabled={true} style={{padding: '0 5px', color: !feedOnline ? 'white' : '#5a7a94', height: '50px', width:'100px', opacity: '.5', pointerEvents: feedOnline ? 'visible' : 'none' }}>Snapshot</button>
+            <button className='ptz-btn' disabled={!feedOnline} style={{padding: '0 5px', color: !feedOnline ? 'white' : '#5a7a94', height: '50px', width:'100px', color: recording ? 'red':'#5a7a94', opacity: feedOnline ? '1.0' : '.5', pointerEvents: feedOnline ? 'visible' : 'none' }} onClick={() => record() }>Record</button>
+          </div>
+        }
+
         {/* Auto Track */}
         <div className="panel">
           <div className="panel-header">

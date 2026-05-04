@@ -1,5 +1,6 @@
 
 from collections import deque
+import datetime
 from queue import Queue
 import sys
 import threading
@@ -24,7 +25,9 @@ TOKEN = ''
 record_buffer = deque(maxlen=600) # minute of frames
 frame_queue = deque(maxlen=30) # queue for frames
 stop_event = threading.Event()
-
+RECORDING = False
+VIDEO=None
+VideoFileName = ''
 def getToken():
     global TOKEN
     r = requests.post(
@@ -209,6 +212,7 @@ def goToPreset(id: int = 1):
     
 def stream(logging, frame_lock):
     stream_url = f'rtsp://{USERNAME}:{PASSWORD}@{CAMERA_IP}:554/Preview_01_main'
+    global RECORDING, VIDEO, VideoFileName
     try:
         logging.info("Camera thread started")
         while not stop_event.is_set():
@@ -236,9 +240,19 @@ def stream(logging, frame_lock):
                 
                 frame = cv2.resize(frame, (854, 480))
                 
+                if RECORDING and VIDEO is None:
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    VideoFileName = str(datetime.datetime.now()).split('.')[0].replace(' ','_').replace(':', '-')
+                    VIDEO = cv2.VideoWriter(filename=f'{VideoFileName}.mp4', fourcc=fourcc, fps=15, frameSize=(854, 480), isColor=True)
+                    VIDEO.write(frame)
+                elif RECORDING and VIDEO is not None:
+                    VIDEO.write(frame)
+                elif not RECORDING and VIDEO is not None:
+                    VIDEO.release()
+                    VIDEO = None
+                
                 _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
                 compressed = buffer.tobytes()
-                record_buffer.append(compressed)
                 with frame_lock: # lock queue from being accessed while inserting
                     frame_queue.append(compressed)
     except Exception as e:
@@ -246,6 +260,8 @@ def stream(logging, frame_lock):
         raise Exception('Could not start stream')
     finally:
         cap.release()
+        VIDEO = None
+        RECORDING = False
 
 def buffer_size():
     total = sum(sys.getsizeof(frame) for frame in record_buffer)
