@@ -212,12 +212,13 @@ async def recordVideo(request: Request):
         else:
             reoLink.RECORDING = False
             await asyncio.sleep(3)
-            if reoLink.VideoFileName and os.path.exists(f'{reoLink.VideoFileName}.mp4'):
+            fn = f'{reoLink.VideoFileName}.mp4'
+            if reoLink.VideoFileName and os.path.exists(fn):
                 return FileResponse(
-                    path=f'{reoLink.VideoFileName}.mp4',
-                    media_type='video/x-msvideo',
-                    filename=f'{reoLink.VideoFileName}.mp4',
-                    background=BackgroundTask(delete_file, f'{reoLink.VideoFileName}.mp4')
+                    path=fn,
+                    media_type='video/mp4',
+                    filename=fn,
+                    background=BackgroundTask(delete_file, fn)
                 )
             logging.error(f"No video found for {reoLink.VideoFileName}")
             raise HTTPException(status_code=404, detail="No recording found") 
