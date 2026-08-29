@@ -2,6 +2,7 @@
 from collections import deque
 import datetime
 from queue import Queue
+import subprocess
 import sys
 import threading
 import logging
@@ -10,6 +11,7 @@ import requests
 from requests.auth import HTTPDigestAuth
 import time
 import cv2
+import numpy as np
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -28,6 +30,12 @@ stop_event = threading.Event()
 RECORDING = False
 VIDEO=None
 VideoFileName = ''
+
+BUFFER_LIMIT_BYTES = 1_073_741_824  # 1 GB
+_cont_buffer: list = []
+_cont_buffer_bytes: int = 0
+_cont_lock = threading.Lock()
+
 def getToken():
     global TOKEN
     r = requests.post(
@@ -210,9 +218,57 @@ def goToPreset(id: int = 1):
     if r.status_code != 200:
         raise Exception('Bad Request')
     
+def _flush_buffer(buffer_snapshot: list) -> None:
+    """Decode a JPEG frame snapshot and append it to today's daily MP4 via ffmpeg concat."""
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    daily_file = f'{today}.mp4'
+    chunk_file = f'chunk_{int(time.time())}.mp4'
+
+    try:
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        writer = cv2.VideoWriter(chunk_file, fourcc, 10, (854, 480))
+        for jpeg_bytes in buffer_snapshot:
+            arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
+            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if frame is not None:
+                writer.write(frame)
+        writer.release()
+
+        if os.path.exists(daily_file):
+            list_file = f'concat_{int(time.time())}.txt'
+            merged_file = f'{today}_merged.mp4'
+            with open(list_file, 'w') as f:
+                f.write(f"file '{os.path.abspath(daily_file)}'\n")
+                f.write(f"file '{os.path.abspath(chunk_file)}'\n")
+            result = subprocess.run(
+                ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', list_file, '-c', 'copy', merged_file],
+                capture_output=True
+            )
+            if os.path.exists(list_file):
+                os.remove(list_file)
+            if result.returncode == 0:
+                os.replace(merged_file, daily_file)
+                os.remove(chunk_file)
+            else:
+                logging.error(f'ffmpeg concat failed: {result.stderr.decode()}')
+                if os.path.exists(merged_file):
+                    os.remove(merged_file)
+        else:
+            os.rename(chunk_file, daily_file)
+
+        logging.info(f'Buffer flushed → {daily_file}')
+    except Exception as e:
+        logging.error(f'Buffer flush failed: {e}')
+        if os.path.exists(chunk_file):
+            try:
+                os.remove(chunk_file)
+            except Exception:
+                pass
+
+
 def stream(logging, frame_lock):
     stream_url = f'rtsp://{USERNAME}:{PASSWORD}@{CAMERA_IP}:554/Preview_01_main'
-    global RECORDING, VIDEO, VideoFileName
+    global RECORDING, VIDEO, VideoFileName, _cont_buffer, _cont_buffer_bytes
     try:
         logging.info("Camera thread started")
         while not stop_event.is_set():
@@ -255,6 +311,17 @@ def stream(logging, frame_lock):
                 compressed = buffer.tobytes()
                 with frame_lock: # lock queue from being accessed while inserting
                     frame_queue.append(compressed)
+
+                snapshot = None
+                with _cont_lock:
+                    _cont_buffer.append(compressed)
+                    _cont_buffer_bytes += len(compressed)
+                    if _cont_buffer_bytes >= BUFFER_LIMIT_BYTES:
+                        snapshot = _cont_buffer
+                        _cont_buffer = []
+                        _cont_buffer_bytes = 0
+                if snapshot is not None:
+                    threading.Thread(target=_flush_buffer, args=(snapshot,), daemon=True).start()
     except Exception as e:
         logging.error(e)
         raise Exception('Could not start stream')
