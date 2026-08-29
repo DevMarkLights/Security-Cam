@@ -6,7 +6,7 @@ let WEB_SOCKET_BASE = ''
 const STREAM_URL = 'http://localhost:8086/security/stream'
 const local = false
 
-export default function SecurityDashboard() {
+export default function SecurityDashboard({ onNavigate }) {
   const [tracking, setTracking] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [feedOnline, setFeedOnline] = useState(true);
@@ -238,6 +238,8 @@ export default function SecurityDashboard() {
             <span className={`status-dot ${feedOnline ? '' : 'offline'}`} />
             {feedOnline ? 'ONLINE' : 'OFFLINE'}
           </div>
+          <div className="header-divider" />
+          <button className="nav-btn" onClick={() => onNavigate('recordings')}>Recordings</button>
           <div className="header-divider" />
           <span className="timestamp">
             {time.toLocaleTimeString('en-US', { hour12: true })}

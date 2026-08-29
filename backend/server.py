@@ -18,9 +18,11 @@ import asyncio
 import base64
 import subprocess
 import os
+import re
 from dotenv import load_dotenv
 load_dotenv()
 DEPLOY_SECRET = os.getenv("DEPLOY_SECRET")
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +43,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174","https://marks-pi.com","http://localhost:3004"],
+    allow_origins=["http://localhost:5174","https://marks-pi.com","http://localhost:3004", "http://localhost:8086"],
     allow_credentials=False,   # MUST be FALSE
     allow_methods=["*"],
     allow_headers=["*"],
@@ -276,6 +278,25 @@ async def deploy(request: Request):
     
     subprocess.Popen(["bash", f"/mnt/nvme/Security-Cam/deploy.bash"])
     return {"status": "deploying", "service": 'Security Service'}
+
+_DATE_FILE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}\.mp4$')
+
+@app.get('/security/recordings')
+async def list_recordings():
+    files = sorted(
+        [f for f in os.listdir(BACKEND_DIR) if _DATE_FILE_RE.match(f)],
+        reverse=True
+    )
+    return {'recordings': files}
+
+@app.get('/security/recordings/{filename}')
+async def get_recording(filename: str):
+    if not _DATE_FILE_RE.match(filename):
+        raise HTTPException(status_code=400, detail='Invalid filename')
+    path = os.path.join(BACKEND_DIR, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail='Not found')
+    return FileResponse(path, media_type='video/mp4')
 
 app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
 
