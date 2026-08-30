@@ -231,7 +231,7 @@ def stream(logging, frame_lock):
         
             while not stop_event.is_set():
             
-                ret, frame = cap.read()
+                ret = cap.grab()
                 if not ret:
                     logging.warning("Lost RTSP stream, reconnecting...")
                     break
@@ -241,7 +241,7 @@ def stream(logging, frame_lock):
                     continue
                 else:
                     frame_count = 0
-                
+                ret, frame = cap.retrieve()
                 frame = cv2.resize(frame, (854, 480))
                 
                 if RECORDING and VIDEO is None:
