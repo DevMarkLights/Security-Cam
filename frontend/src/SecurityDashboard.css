@@ -770,6 +770,18 @@ body::before {
   .panel{
     padding: 8px;
   }
+
+  /* .recordings-list{
+    width: 50%;
+  } */
+  .recordings-player{
+    padding: 16px
+  }
+
+  .recordings-body{
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 900px) {
