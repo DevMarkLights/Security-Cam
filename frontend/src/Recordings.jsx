@@ -52,8 +52,9 @@ export default function Recordings({ onNavigate }) {
                 controls
                 autoPlay
                 className="recordings-video"
-                src={`${API_BASE}/security/recordings/${selected}`}
-              />
+              >
+                <source src={`${API_BASE}/security/recordings/${selected}`} type="video/mp4" />
+              </video>
               <div className="recordings-filename">{selected.replace('.mp4', '')}</div>
             </>
           ) : (

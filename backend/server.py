@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import threading
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, Body, Form, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
@@ -283,20 +283,67 @@ _DATE_FILE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}\.mp4$')
 
 @app.get('/security/recordings')
 async def list_recordings():
+    import datetime
+    today = datetime.date.today().strftime('%Y-%m-%d') + '.mp4'
     files = sorted(
-        [f for f in os.listdir(BACKEND_DIR) if _DATE_FILE_RE.match(f)],
+        [f for f in os.listdir(BACKEND_DIR) if _DATE_FILE_RE.match(f) and f != today],
         reverse=True
     )
     return {'recordings': files}
 
 @app.get('/security/recordings/{filename}')
-async def get_recording(filename: str):
+async def get_recording(filename: str, request: Request):
     if not _DATE_FILE_RE.match(filename):
         raise HTTPException(status_code=400, detail='Invalid filename')
     path = os.path.join(BACKEND_DIR, filename)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail='Not found')
-    return FileResponse(path, media_type='video/mp4')
+
+    file_size = os.path.getsize(path)
+    range_header = request.headers.get("range")
+
+    if range_header:
+        range_val = range_header.replace("bytes=", "").split("-")
+        start = int(range_val[0]) if range_val[0] else 0
+        end = int(range_val[1]) if len(range_val) > 1 and range_val[1] else file_size - 1
+        end = min(end, file_size - 1)
+        chunk_size = end - start + 1
+
+        def iter_range():
+            with open(path, "rb") as f:
+                f.seek(start)
+                remaining = chunk_size
+                while remaining > 0:
+                    data = f.read(min(8192, remaining))
+                    if not data:
+                        break
+                    remaining -= len(data)
+                    yield data
+
+        return StreamingResponse(
+            iter_range(),
+            status_code=206,
+            media_type="video/mp4",
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(chunk_size),
+            },
+        )
+
+    def iter_full():
+        with open(path, "rb") as f:
+            while chunk := f.read(8192):
+                yield chunk
+
+    return StreamingResponse(
+        iter_full(),
+        media_type="video/mp4",
+        headers={
+            "Content-Length": str(file_size),
+            "Accept-Ranges": "bytes",
+        },
+    )
 
 app.mount("/security", StaticFiles(directory="dist", html=True), name="static")
 
