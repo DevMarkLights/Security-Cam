@@ -2,6 +2,7 @@
 from collections import deque
 import datetime
 from queue import Queue
+import subprocess
 import sys
 import threading
 import logging
@@ -29,7 +30,7 @@ RECORDING = False
 VIDEO=None
 VideoFileName = ''
 
-_daily_writer = None
+_daily_proc = None
 _daily_date = ''
 
 def getToken():
@@ -262,20 +263,36 @@ def stream(logging, frame_lock):
 
                 today = datetime.date.today().strftime('%Y-%m-%d')
                 if today != _daily_date:
-                    if _daily_writer is not None:
-                        _daily_writer.release()
-                    fourcc = cv2.VideoWriter_fourcc(*'avc1')
-                    _daily_writer = cv2.VideoWriter(f'{today}.mp4', fourcc, 10, (854, 480))
+                    if _daily_proc is not None:
+                        _daily_proc.stdin.close()
+                        _daily_proc.wait()
+                    _daily_proc = subprocess.Popen(
+                        ['ffmpeg', '-y',
+                         '-f', 'rawvideo', '-pixel_format', 'bgr24',
+                         '-video_size', '854x480', '-framerate', '10',
+                         '-i', 'pipe:0',
+                         '-c:v', 'libx264', '-preset', 'ultrafast',
+                         '-movflags', '+faststart',
+                         f'{today}.mp4'],
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
                     _daily_date = today
                     logging.info(f'Daily recording started → {today}.mp4')
-                _daily_writer.write(frame)
+                try:
+                    _daily_proc.stdin.write(frame.tobytes())
+                except BrokenPipeError:
+                    logging.error('Daily writer pipe broken')
+                    _daily_proc = None
     except Exception as e:
         logging.error(e)
         raise Exception('Could not start stream')
     finally:
         cap.release()
-        if _daily_writer is not None:
-            _daily_writer.release()
+        if _daily_proc is not None:
+            _daily_proc.stdin.close()
+            _daily_proc.wait()
         VIDEO = None
         RECORDING = False
 
