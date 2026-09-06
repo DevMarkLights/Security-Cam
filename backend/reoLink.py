@@ -2,6 +2,7 @@
 from collections import deque
 import datetime
 from queue import Queue
+import subprocess
 import sys
 import threading
 import logging
@@ -31,6 +32,25 @@ VideoFileName = ''
 
 _daily_writer = None
 _daily_date = ''
+
+def _remux_for_web(path, log):
+    tmp = path.replace('.mp4', '_tmp.mp4')
+    try:
+        result = subprocess.run(
+            ['ffmpeg', '-y', '-i', path,
+             '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+             '-movflags', '+faststart', tmp],
+            capture_output=True, timeout=600
+        )
+        if result.returncode == 0:
+            os.replace(tmp, path)
+            log.info(f'Remuxed {path} to H.264 with faststart')
+        else:
+            log.error(f'ffmpeg failed for {path}: {result.stderr.decode()}')
+            if os.path.exists(tmp):
+                os.remove(tmp)
+    except Exception as e:
+        log.error(f'ffmpeg remux error for {path}: {e}')
 
 def getToken():
     global TOKEN
@@ -264,6 +284,8 @@ def stream(logging, frame_lock):
                 if today != _daily_date:
                     if _daily_writer is not None:
                         _daily_writer.release()
+                        prev_path = f'{_daily_date}.mp4'
+                        threading.Thread(target=_remux_for_web, args=(prev_path, logging), daemon=True).start()
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                     _daily_writer = cv2.VideoWriter(f'{today}.mp4', fourcc, 10, (854, 480))
                     _daily_date = today

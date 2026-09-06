@@ -755,6 +755,9 @@ body::before {
     min-height: 100vh;
   }
 
+  .header-right{
+    margin-left: 16px;
+  }
   .feed-area {
     border-right: none;
     border-bottom: 1px solid var(--border);
