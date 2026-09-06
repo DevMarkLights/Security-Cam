@@ -217,7 +217,7 @@ def goToPreset(id: int = 1):
     
 def stream(logging, frame_lock):
     stream_url = f'rtsp://{USERNAME}:{PASSWORD}@{CAMERA_IP}:554/Preview_01_main'
-    global RECORDING, VIDEO, VideoFileName, _daily_writer, _daily_date
+    global RECORDING, VIDEO, VideoFileName, _daily_proc, _daily_date
     try:
         logging.info("Camera thread started")
         while not stop_event.is_set():
