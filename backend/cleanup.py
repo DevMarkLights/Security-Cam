@@ -60,7 +60,7 @@ def remux_existing():
         tmp = path.replace('.mp4', '_tmp.mp4')
         result = subprocess.run(
             ['ffmpeg', '-y', '-i', path,
-             '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+             '-c', 'copy',
              '-movflags', '+faststart', tmp],
             capture_output=True
         )

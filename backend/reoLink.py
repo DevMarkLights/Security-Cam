@@ -38,7 +38,7 @@ def _remux_for_web(path, log):
     try:
         result = subprocess.run(
             ['ffmpeg', '-y', '-i', path,
-             '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+             '-c', 'copy',
              '-movflags', '+faststart', tmp],
             capture_output=True, timeout=600
         )
