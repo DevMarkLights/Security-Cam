@@ -231,7 +231,7 @@ export default function SecurityDashboard({ onNavigate }) {
         <div className="header-left">
           <span className="logo">Lights Security</span>
           <div className="header-divider" />
-          <span className="header-title">Security Control System</span>
+          {/* <span className="header-title">Security Control System</span> */}
         </div>
         <div className="header-right">
           <div className="status-indicator">
