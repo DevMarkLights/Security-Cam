@@ -314,7 +314,7 @@ async def get_recording(filename: str, request: Request):
                 f.seek(start)
                 remaining = chunk_size
                 while remaining > 0:
-                    data = f.read(min(8192, remaining))
+                    data = f.read(min(262144, remaining))
                     if not data:
                         break
                     remaining -= len(data)
@@ -333,7 +333,7 @@ async def get_recording(filename: str, request: Request):
 
     def iter_full():
         with open(path, "rb") as f:
-            while chunk := f.read(8192):
+            while chunk := f.read(262144):
                 yield chunk
 
     return StreamingResponse(
